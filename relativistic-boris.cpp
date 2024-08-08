@@ -35,17 +35,17 @@ int main() {
     Particle test = {0.25f, 0.25f, 0.25f, 10.0f, 10.0f, 10.0f};
 
     // Half-step momentum from Electric field
-    test.px += timestep * eField.x / 2.0;
-    test.py += timestep * eField.y / 2.0;
-    test.pz += timestep * eField.z / 2.0;
+    test.px += timestep * eField.x / 2.0f;
+    test.py += timestep * eField.y / 2.0f;
+    test.pz += timestep * eField.z / 2.0f;
 
     // Lorentz factor for half-step momentum
-    float lorentz = std::sqrt(1.0 + test.px*test.px + test.py*test.py + test.pz*test.pz);
+    float lorentz = std::sqrt(1.0f + test.px*test.px + test.py*test.py + test.pz*test.pz);
 
     // Rotation vector from Magnetic field
-    float tx = timestep * bField.x / 2.0 * lorentz;
-    float ty = timestep * bField.y / 2.0 * lorentz;
-    float tz = timestep * bField.z / 2.0 * lorentz;
+    float tx = timestep * bField.x / (2.0f * lorentz);
+    float ty = timestep * bField.y / (2.0f * lorentz);
+    float tz = timestep * bField.z / (2.0f * lorentz);
     float tMagSquare = tx*tx + ty*ty + tz*tz;
 
     // Cross product of half p and t
@@ -55,22 +55,17 @@ int main() {
 
     // Update momentum with effect from Boris rotation and Electric field 
     float denominator = 1 + tMagSquare;
-    test.px += (2.0 * pyPrime * tz - pzPrime * ty / denominator) + (timestep * eField.x / 2.0);
-    test.py += (2.0 * pzPrime * tx - pxPrime * tz / denominator) + (timestep * eField.y / 2.0);
-    test.pz += (2.0 * pxPrime * ty - pyPrime * tx / denominator) + (timestep * eField.y / 2.0);
+    test.px += (2.0f * pyPrime * tz - pzPrime * ty / denominator) + (timestep * eField.x / 2.0f);
+    test.py += (2.0f * pzPrime * tx - pxPrime * tz / denominator) + (timestep * eField.y / 2.0f);
+    test.pz += (2.0f * pxPrime * ty - pyPrime * tx / denominator) + (timestep * eField.y / 2.0f);
  
     // Lorentz factor for updated momentum
-    lorentz = std::sqrt(1.0 + test.px*test.px + test.py*test.py + test.pz*test.pz);
+    lorentz = std::sqrt(1.0f + test.px*test.px + test.py*test.py + test.pz*test.pz);
 
-    // Calculate Velocity from momentum 
-    float xVel = test.px / lorentz; 
-    float yVel = test.py / lorentz; 
-    float zVel = test.pz / lorentz; 
-
-    // Update position
-    test.x += xVel * timestep;
-    test.y += yVel * timestep;
-    test.z += zVel * timestep;
+    // Update position using calculated velocity
+    test.x += timestep * test.px / lorentz;
+    test.y += timestep * test.py / lorentz;
+    test.z += timestep * test.pz / lorentz;
 
     // Print particle
     std::cout << test.print() << "\n";
