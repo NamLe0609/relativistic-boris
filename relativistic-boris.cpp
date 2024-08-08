@@ -13,7 +13,7 @@ struct Particle {
     float pz;
 
     std::string print() {
-        return "x: " + std::to_string(x) + " y: " + std::to_string(y) + " z: " + std::to_string(z) +"px: " + std::to_string(px) + " py: " + std::to_string(py) + " pz: " + std::to_string(pz);
+        return "x: " + std::to_string(x) + " y: " + std::to_string(y) + " z: " + std::to_string(z) +" px: " + std::to_string(px) + " py: " + std::to_string(py) + " pz: " + std::to_string(pz);
     }
 };
 
@@ -62,7 +62,7 @@ int main() {
     // Update momentum with effect from Electric field 
     test.px = pxPlus + timestep * eField.x / 2;
     test.py = pyPlus + timestep * eField.y / 2;
-    test.px = pzPlus + timestep * eField.z / 2;
+    test.pz = pzPlus + timestep * eField.z / 2;
 
     // Lorentz factor for updated momentum
     lorentz = std::sqrt(1 + test.px*test.px + test.py*test.py + test.pz*test.pz);
