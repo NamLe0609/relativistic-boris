@@ -55,9 +55,9 @@ int main() {
 
     // Update momentum with effect from Boris rotation 
     float denominator = 1 + tMagSquare;
-    float pxPlus = 2 * (pyPrime * tz - pzPrime * ty) / denominator;
-    float pyPlus = 2 * (pzPrime * tx - pxPrime * tz) / denominator;
-    float pzPlus = 2 * (pxPrime * ty - pyPrime * tx) / denominator;
+    float pxPlus = pxHalf + 2 * (pyPrime * tz - pzPrime * ty) / denominator;
+    float pyPlus = pyHalf + 2 * (pzPrime * tx - pxPrime * tz) / denominator;
+    float pzPlus = pzHalf + 2 * (pxPrime * ty - pyPrime * tx) / denominator;
 
     // Update momentum with effect from Electric field 
     test.px = pxPlus + timestep * eField.x / 2;
