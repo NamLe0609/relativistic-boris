@@ -28,44 +28,44 @@ int main() {
     float timestep = 0.025f; 
 
     // Initialize E and B fields
-    Field eField {0.5, 0.5, 0.5};
-    Field bField {0.75, 0.75, 0.75}; 
+    Field eField {0.5f, 0.5f, 0.5f};
+    Field bField {0.75f, 0.75f, 0.75f}; 
 
     // Initialize particle with fixed data
-    Particle test = {0.25, 0.25, 0.25, 10, 10, 10};
+    Particle test = {0.25f, 0.25f, 0.25f, 10.0f, 10.0f, 10.0f};
 
     // Half-step momentum from Electric field
-    float pxHalf = test.px + timestep * eField.x / 2;
-    float pyHalf = test.py + timestep * eField.y / 2;
-    float pzHalf = test.pz + timestep * eField.z / 2;
+    test.px += timestep * eField.x / 2.0;
+    test.py += timestep * eField.y / 2.0;
+    test.pz += timestep * eField.z / 2.0;
 
     // Lorentz factor for half-step momentum
-    float lorentz = std::sqrt(1 + pxHalf*pxHalf + pyHalf*pyHalf + pzHalf*pzHalf);
+    float lorentz = std::sqrt(1.0 + test.px*test.px + test.py*test.py + test.pz*test.pz);
 
     // Rotation vector from Magnetic field
-    float tx = timestep * bField.x / 2*lorentz;
-    float ty = timestep * bField.y / 2*lorentz;
-    float tz = timestep * bField.z / 2*lorentz;
+    float tx = timestep * bField.x / 2.0 * lorentz;
+    float ty = timestep * bField.y / 2.0 * lorentz;
+    float tz = timestep * bField.z / 2.0 * lorentz;
     float tMagSquare = tx*tx + ty*ty + tz*tz;
 
     // Cross product of half p and t
-    float pxPrime = pxHalf + (pyHalf * tz - pzHalf * ty); 
-    float pyPrime = pyHalf + (pzHalf * tx - pxHalf * tz); 
-    float pzPrime = pzHalf + (pxHalf * ty - pyHalf * tx); 
+    float pxPrime = test.px + (test.py * tz - test.pz * ty); 
+    float pyPrime = test.py + (test.pz * tx - test.px * tz); 
+    float pzPrime = test.pz + (test.px * ty - test.py * tx); 
 
     // Update momentum with effect from Boris rotation 
     float denominator = 1 + tMagSquare;
-    float pxPlus = 2 * (pyPrime * tz - pzPrime * ty) / denominator;
-    float pyPlus = 2 * (pzPrime * tx - pxPrime * tz) / denominator;
-    float pzPlus = 2 * (pxPrime * ty - pyPrime * tx) / denominator;
-
+    test.px += 2.0 * (pyPrime * tz - pzPrime * ty) / denominator;
+    test.py += 2.0 * (pzPrime * tx - pxPrime * tz) / denominator;
+    test.pz += 2.0 * (pxPrime * ty - pyPrime * tx) / denominator;
+ 
     // Update momentum with effect from Electric field 
-    test.px = pxPlus + timestep * eField.x / 2;
-    test.py = pyPlus + timestep * eField.y / 2;
-    test.px = pzPlus + timestep * eField.z / 2;
+    test.px += timestep * eField.x / 2.0;
+    test.py += timestep * eField.y / 2.0;
+    test.px += timestep * eField.z / 2.0;
 
     // Lorentz factor for updated momentum
-    lorentz = std::sqrt(1 + test.px*test.px + test.py*test.py + test.pz*test.pz);
+    lorentz = std::sqrt(1.0 + test.px*test.px + test.py*test.py + test.pz*test.pz);
 
     // Calculate Velocity from momentum 
     float xVel = test.px / lorentz; 
@@ -82,3 +82,4 @@ int main() {
 
     return 0.0;
 }
+
