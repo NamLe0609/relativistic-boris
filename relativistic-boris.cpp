@@ -3,54 +3,57 @@
 #include <string>
 #include <iostream>
 
+template <typename T>
 struct Particle {
-    float x;
-    float y;
-    float z;
+    T x;
+    T y;
+    T z;
 
-    float px;
-    float py;
-    float pz;
+    T px;
+    T py;
+    T pz;
 
     std::string print() {
         return "x: " + std::to_string(x) + " y: " + std::to_string(y) + " z: " + std::to_string(z) +"px: " + std::to_string(px) + " py: " + std::to_string(py) + " pz: " + std::to_string(pz);
     }
 };
 
+template <typename T>
 struct Field {
-    float x;
-    float y;
-    float z;
+    T x;
+    T y;
+    T z;
 };
 
-void relativisticBoris(Particle &electron, const Field &eField, const Field &bField, float timestep) {
+template <typename T>
+void relativisticBoris(Particle<T> &electron, const Field<T> &eField, const Field<T> &bField, T timestep) {
     // Half-step momentum from Electric field
-    electron.px += timestep * eField.x / 2.0f;
-    electron.py += timestep * eField.y / 2.0f;
-    electron.pz += timestep * eField.z / 2.0f;
+    electron.px += timestep * eField.x / (T) 2.0;
+    electron.py += timestep * eField.y / (T) 2.0;
+    electron.pz += timestep * eField.z / (T) 2.0;
 
     // Lorentz factor for half-step momentum
-    float lorentz = std::sqrt(1.0f + electron.px*electron.px + electron.py*electron.py + electron.pz*electron.pz);
+    T lorentz = std::sqrt(1.0f + electron.px*electron.px + electron.py*electron.py + electron.pz*electron.pz);
 
     // Rotation vector from Magnetic field
-    float tx = timestep * bField.x / (2.0f * lorentz);
-    float ty = timestep * bField.y / (2.0f * lorentz);
-    float tz = timestep * bField.z / (2.0f * lorentz);
-    float tMagSquare = tx*tx + ty*ty + tz*tz;
+    T tx = timestep * bField.x / ((T) 2.0 * lorentz);
+    T ty = timestep * bField.y / ((T) 2.0 * lorentz);
+    T tz = timestep * bField.z / ((T) 2.0 * lorentz);
+    T tMagSquare = tx*tx + ty*ty + tz*tz;
 
     // Cross product of half p and t
-    float pxPrime = electron.px + (electron.py * tz - electron.pz * ty); 
-    float pyPrime = electron.py + (electron.pz * tx - electron.px * tz); 
-    float pzPrime = electron.pz + (electron.px * ty - electron.py * tx); 
+    T pxPrime = electron.px + (electron.py * tz - electron.pz * ty); 
+    T pyPrime = electron.py + (electron.pz * tx - electron.px * tz); 
+    T pzPrime = electron.pz + (electron.px * ty - electron.py * tx); 
 
     // Update momentum with effect from Boris rotation and Electric field 
-    float denominator = 1 + tMagSquare;
+    T denominator = 1 + tMagSquare;
     electron.px += 2 * (pyPrime * tz - pzPrime * ty) / denominator + timestep * eField.x / 2;
     electron.py += 2 * (pzPrime * tx - pxPrime * tz) / denominator + timestep * eField.y / 2;
     electron.pz += 2 * (pxPrime * ty - pyPrime * tx) / denominator + timestep * eField.z / 2;
  
     // Lorentz factor for updated momentum
-    lorentz = std::sqrt(1.0f + electron.px*electron.px + electron.py*electron.py + electron.pz*electron.pz);
+    lorentz = std::sqrt((T) 1.0 + electron.px*electron.px + electron.py*electron.py + electron.pz*electron.pz);
 
     // Update position using calculated velocity
     electron.x += timestep * electron.px / lorentz;
@@ -60,14 +63,14 @@ void relativisticBoris(Particle &electron, const Field &eField, const Field &bFi
 
 int main() {
     // Choose arbitrary timesteps
-    float timestep = 0.025f; 
+    double timestep = 0.025; 
 
     // Initialize E and B fields
-    Field eField {0.5f, 0.5f, 0.5f};
-    Field bField {0.75f, 0.75f, 0.75f}; 
+    Field<double> eField {0.5, 0.5, 0.5};
+    Field<double> bField {0.75, 0.75, 0.75}; 
 
     // Initialize particle with fixed data
-    Particle test = {0.25f, 0.25f, 0.25f, 10.0f, 10.0f, 10.0f};
+    Particle<double> test = {0.25, 0.25, 0.25, 10.0, 10.0, 10.0};
     
     relativisticBoris(test, eField, bField, timestep);
     
