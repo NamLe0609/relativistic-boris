@@ -43,9 +43,9 @@ int main() {
     float lorentz = std::sqrt(1 + pxHalf*pxHalf + pyHalf*pyHalf + pzHalf*pzHalf);
 
     // Rotation vector from Magnetic field
-    float tx = timestep * bField.x / 2*lorentz;
-    float ty = timestep * bField.y / 2*lorentz;
-    float tz = timestep * bField.z / 2*lorentz;
+    float tx = timestep * bField.x / (2 * lorentz);
+    float ty = timestep * bField.y / (2 * lorentz);
+    float tz = timestep * bField.z / (2 * lorentz);
     float tMagSquare = tx*tx + ty*ty + tz*tz;
 
     // Cross product of half p and t
