@@ -53,17 +53,12 @@ int main() {
     float pyPrime = test.py + (test.pz * tx - test.px * tz); 
     float pzPrime = test.pz + (test.px * ty - test.py * tx); 
 
-    // Update momentum with effect from Boris rotation 
+    // Update momentum with effect from Boris rotation and Electric field 
     float denominator = 1 + tMagSquare;
-    test.px += 2.0 * (pyPrime * tz - pzPrime * ty) / denominator;
-    test.py += 2.0 * (pzPrime * tx - pxPrime * tz) / denominator;
-    test.pz += 2.0 * (pxPrime * ty - pyPrime * tx) / denominator;
+    test.px += (2.0 * pyPrime * tz - pzPrime * ty / denominator) + (timestep * eField.x / 2.0);
+    test.py += (2.0 * pzPrime * tx - pxPrime * tz / denominator) + (timestep * eField.y / 2.0);
+    test.pz += (2.0 * pxPrime * ty - pyPrime * tx / denominator) + (timestep * eField.y / 2.0);
  
-    // Update momentum with effect from Electric field 
-    test.px += timestep * eField.x / 2.0;
-    test.py += timestep * eField.y / 2.0;
-    test.px += timestep * eField.z / 2.0;
-
     // Lorentz factor for updated momentum
     lorentz = std::sqrt(1.0 + test.px*test.px + test.py*test.py + test.pz*test.pz);
 
