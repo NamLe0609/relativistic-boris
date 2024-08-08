@@ -60,9 +60,9 @@ int main() {
     float pzPlus = 2 * (pxPrime * ty - pyPrime * tx) / denominator;
 
     // Update momentum with effect from Electric field 
-    test.px += pxPlus + timestep * eField.x / 2;
-    test.py += pyPlus + timestep * eField.y / 2;
-    test.px += pzPlus + timestep * eField.z / 2;
+    test.px = pxPlus + timestep * eField.x / 2;
+    test.py = pyPlus + timestep * eField.y / 2;
+    test.px = pzPlus + timestep * eField.z / 2;
 
     // Lorentz factor for updated momentum
     lorentz = std::sqrt(1 + test.px*test.px + test.py*test.py + test.pz*test.pz);
