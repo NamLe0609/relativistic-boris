@@ -23,62 +23,57 @@ struct Field {
     float z;
 };
 
+void relativisticBoris(Particle &electron, const Field &eField, const Field &bField, float timestep) {
+    // Half-step momentum from Electric field
+    electron.px += timestep * eField.x / 2.0f;
+    electron.py += timestep * eField.y / 2.0f;
+    electron.pz += timestep * eField.z / 2.0f;
+
+    // Lorentz factor for half-step momentum
+    float lorentz = std::sqrt(1.0f + electron.px*electron.px + electron.py*electron.py + electron.pz*electron.pz);
+
+    // Rotation vector from Magnetic field
+    float tx = timestep * bField.x / (2.0f * lorentz);
+    float ty = timestep * bField.y / (2.0f * lorentz);
+    float tz = timestep * bField.z / (2.0f * lorentz);
+    float tMagSquare = tx*tx + ty*ty + tz*tz;
+
+    // Cross product of half p and t
+    float pxPrime = electron.px + (electron.py * tz - electron.pz * ty); 
+    float pyPrime = electron.py + (electron.pz * tx - electron.px * tz); 
+    float pzPrime = electron.pz + (electron.px * ty - electron.py * tx); 
+
+    // Update momentum with effect from Boris rotation and Electric field 
+    float denominator = 1 + tMagSquare;
+    electron.px += 2 * (pyPrime * tz - pzPrime * ty) / denominator + timestep * eField.x / 2;
+    electron.py += 2 * (pzPrime * tx - pxPrime * tz) / denominator + timestep * eField.y / 2;
+    electron.pz += 2 * (pxPrime * ty - pyPrime * tx) / denominator + timestep * eField.z / 2;
+ 
+    // Lorentz factor for updated momentum
+    lorentz = std::sqrt(1.0f + electron.px*electron.px + electron.py*electron.py + electron.pz*electron.pz);
+
+    // Update position using calculated velocity
+    electron.x += timestep * electron.px / lorentz;
+    electron.y += timestep * electron.py / lorentz;
+    electron.z += timestep * electron.pz / lorentz;
+}
+
 int main() {
     // Choose arbitrary timesteps
     float timestep = 0.025f; 
 
     // Initialize E and B fields
-    Field eField {0.5, 0.5, 0.5};
-    Field bField {0.75, 0.75, 0.75}; 
+    Field eField {0.5f, 0.5f, 0.5f};
+    Field bField {0.75f, 0.75f, 0.75f}; 
 
     // Initialize particle with fixed data
-    Particle test = {0.25, 0.25, 0.25, 10, 10, 10};
-
-    // Half-step momentum from Electric field
-    float pxHalf = test.px + timestep * eField.x / 2;
-    float pyHalf = test.py + timestep * eField.y / 2;
-    float pzHalf = test.pz + timestep * eField.z / 2;
-
-    // Lorentz factor for half-step momentum
-    float lorentz = std::sqrt(1 + pxHalf*pxHalf + pyHalf*pyHalf + pzHalf*pzHalf);
-
-    // Rotation vector from Magnetic field
-    float tx = timestep * bField.x / (2 * lorentz);
-    float ty = timestep * bField.y / (2 * lorentz);
-    float tz = timestep * bField.z / (2 * lorentz);
-    float tMagSquare = tx*tx + ty*ty + tz*tz;
-
-    // Cross product of half p and t
-    float pxPrime = pxHalf + (pyHalf * tz - pzHalf * ty); 
-    float pyPrime = pyHalf + (pzHalf * tx - pxHalf * tz); 
-    float pzPrime = pzHalf + (pxHalf * ty - pyHalf * tx); 
-
-    // Update momentum with effect from Boris rotation 
-    float denominator = 1 + tMagSquare;
-    float pxPlus = pxHalf + 2 * (pyPrime * tz - pzPrime * ty) / denominator;
-    float pyPlus = pyHalf + 2 * (pzPrime * tx - pxPrime * tz) / denominator;
-    float pzPlus = pzHalf + 2 * (pxPrime * ty - pyPrime * tx) / denominator;
-
-    // Update momentum with effect from Electric field 
-    test.px = pxPlus + timestep * eField.x / 2;
-    test.py = pyPlus + timestep * eField.y / 2;
-    test.pz = pzPlus + timestep * eField.z / 2;
-
-    // Lorentz factor for updated momentum
-    lorentz = std::sqrt(1 + test.px*test.px + test.py*test.py + test.pz*test.pz);
-
-    // Calculate Velocity from momentum 
-    float xVel = test.px / lorentz; 
-    float yVel = test.py / lorentz; 
-    float zVel = test.pz / lorentz; 
-
-    // Update position
-    test.x += xVel * timestep;
-    test.y += yVel * timestep;
-    test.z += zVel * timestep;
-
+    Particle test = {0.25f, 0.25f, 0.25f, 10.0f, 10.0f, 10.0f};
+    
+    relativisticBoris(test, eField, bField, timestep);
+    
     // Print particle
     std::cout << test.print() << "\n";
 
     return 0.0;
 }
+
