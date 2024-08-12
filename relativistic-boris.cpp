@@ -85,9 +85,12 @@ int main() {
         }
     } 
 
-    // Update particles with one iteration of Boris pusher
-    for (Particle &p: particles) {
-       p = push_particle(p, e_field, b_field, timestep); 
+    // Update particles with n iteration of Boris pusher
+    size_t max_iter = 1;
+    for (size_t i = 0; i < max_iter; i++) {
+        for (Particle &p: particles) {
+            p = push_particle(p, e_field, b_field, timestep); 
+        } 
     }
     
     // Print particle
