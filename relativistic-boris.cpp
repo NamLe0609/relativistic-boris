@@ -80,7 +80,7 @@ int main() {
     particles.reserve(256);
     for (size_t i = 0; i < 16; i++) {
         for (size_t j = 0; j < 16; j++) {
-            // Static cast to prevent implecit conversion
+            // Static cast to prevent implicit conversion
             particles.push_back(Particle(static_cast<float>(i), static_cast<float>(j), 0, 10.0, 10.0, 10.0));
         }
     } 
