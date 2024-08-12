@@ -76,9 +76,24 @@ int main() {
     Field b_field(0.75, 0.75, 0.75);
 
     // Initialize particles with fixed data
-    
+    std::vector<Particle> particles;
+    particles.reserve(256);
+    for (size_t i = 0; i < 16; i++) {
+        for (size_t j = 0; j < 16; j++) {
+            // Static cast to prevent implecit conversion
+            particles.push_back(Particle(static_cast<float>(i), static_cast<float>(j), 0, 10.0, 10.0, 10.0));
+        }
+    } 
+
+    // Update particles with one iteration of Boris pusher
+    for (Particle &p: particles) {
+       p = push_particle(p, e_field, b_field, timestep); 
+    }
     
     // Print particle
+    for (Particle p: particles) {
+        std::cout << p.print() << "\n";
+    }
 
     return 0.0;
 }
