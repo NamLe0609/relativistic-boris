@@ -13,9 +13,8 @@ struct Particle
     float py;
     float pz;
 
-    // Initializes the particle attributes
-    Particle(float x_pos, float y_pos, float z_pos, float x_momentum, float y_momentum, float z_momentum)
-        : x(x_pos), y(y_pos), z(z_pos), px(x_momentum), py(y_momentum), pz(z_momentum) {}
+    // Default constructor
+    Particle() : x(), y(), z(), px(), py(), pz() {}
 
     void update(float x_pos, float y_pos, float z_pos, float x_momentum, float y_momentum, float z_momentum)
     {
@@ -35,12 +34,17 @@ struct Particle
 
 struct ParticleHistory
 {
-    float* x;
-    float* y;
-    float* z;
-    float* px;
-    float* py;
-    float* pz;
+    float *x;
+    float *y;
+    float *z;
+    float *px;
+    float *py;
+    float *pz;
+
+    // Default constructor
+    ParticleHistory() : x(nullptr), y(nullptr), z(nullptr), px(nullptr), py(nullptr), pz(nullptr) {}
+
+    // Initialize the variable lists of size max_time
     ParticleHistory(int max_time)
     {
         x = new float[max_time];
@@ -51,7 +55,8 @@ struct ParticleHistory
         pz = new float[max_time];
     }
 
-    ~ParticleHistory() {
+    ~ParticleHistory()
+    {
         delete[] x;
         delete[] y;
         delete[] z;
@@ -73,18 +78,16 @@ struct Field
 
 void initialize_particles(Particle *particles, int num_of_particles)
 {
-    for (int i = 0; i < num_of_particles; i++) {
-        // Placeholder particle placement routine 
-        for (int x = 0; x < 16; x++) {
-            for (int y = 0; y < 16; y++) {
-                particles[i] = Particle(static_cast<float>(x), static_cast<float>(y), 0.0, 10.0, 10.0, 10.0);
-            }
-        }
+    for (int i = 0; i < num_of_particles; i++)
+    {
+        particles[i].update(static_cast<float>(i), static_cast<float>(i), 0.0, 10.0, 10.0, 10.0);
     }
 }
 
-void initialize_particle_history(ParticleHistory* particle_histories, int num_of_particles, int max_iter) {
-    for (int i = 0; i < num_of_particles; i++) {
+void initialize_particle_history(ParticleHistory *particle_histories, int num_of_particles, int max_iter)
+{
+    for (int i = 0; i < num_of_particles; i++)
+    {
         particle_histories[i] = ParticleHistory(max_iter);
     }
 }
@@ -128,32 +131,38 @@ void push_particle(Particle &electron, const Field &e_field, const Field &b_fiel
     electron.update(x_updated, y_updated, z_updated, px_updated, py_updated, pz_updated);
 }
 
-void update_particles(Particle* particles, ParticleHistory* particle_histories, Field e_field, Field b_field, float timestep, int num_of_particles, int latest_time) {
-    for (int i = 0; i < num_of_particles; i++) {
+void update_particles(Particle *particles, ParticleHistory *particle_histories, Field e_field, Field b_field, float timestep, int num_of_particles, int latest_time)
+{
+    for (int i = 0; i < num_of_particles; i++)
+    {
         push_particle(particles[i], e_field, b_field, timestep);
         particle_histories[i].x[latest_time] = particles[i].x;
+        particle_histories[i].y[latest_time] = particles[i].y;
+        particle_histories[i].z[latest_time] = particles[i].z;
+        particle_histories[i].px[latest_time] = particles[i].px;
+        particle_histories[i].py[latest_time] = particles[i].py;
+        particle_histories[i].pz[latest_time] = particles[i].pz;
     }
 }
-
 
 int main()
 {
     // Choose arbitrary timesteps
-    float timestep = 0.025f;
+    const float timestep = 0.025f;
 
     // Choose particles to simulate
     const int num_of_particles = 256;
 
     // Number of Boris pusher iteration run
-    int max_iter = 100;
+    const int max_iter = 100;
 
     // Initialize E and B fields
-    Field e_field(0.5, 0.5, 0.5);
-    Field b_field(0.75, 0.75, 0.75);
+    const Field e_field(0.5, 0.5, 0.5);
+    const Field b_field(0.75, 0.75, 0.75);
 
     // Declare and initialize particles with fixed data
-    Particle* particles;
-    ParticleHistory* particle_histories;
+    Particle *particles = new Particle[num_of_particles];
+    ParticleHistory *particle_histories = new ParticleHistory[num_of_particles];
     initialize_particles(particles, num_of_particles);
     initialize_particle_history(particle_histories, num_of_particles, max_iter);
 
@@ -164,7 +173,8 @@ int main()
     }
 
     // Print particle
-    for (int i = 0; i < num_of_particles; i++) {
+    for (int i = 0; i < num_of_particles; i++)
+    {
         std::cout << particles[i].print() << "\n";
     }
     return 0.0;
