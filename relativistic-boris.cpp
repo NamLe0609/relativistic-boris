@@ -78,7 +78,6 @@ struct Field
 
 enum class ParticlePlacementType {
     UNIFORM, // Evenly spaced integer placement for xyz coordinates
-    RANDOM, // Description 
 };
 
 void initialize_particles(Particle *particles, int num_of_particles, ParticlePlacementType placement_type)
@@ -86,30 +85,23 @@ void initialize_particles(Particle *particles, int num_of_particles, ParticlePla
     switch (placement_type)
     {
     case ParticlePlacementType::UNIFORM:
-        int max_dim = static_cast<int>(std::cbrt(static_cast<float>(num_of_particles)));
-        int i = 0;
-        for (int x = 0; x <= max_dim; x++)
+    int max_dim = static_cast<int>(std::cbrt(static_cast<float>(num_of_particles)));
+    int i = 0;
+    for (int x = 0; x <= max_dim; x++)
+    {
+        for (int y = 0; y < max_dim; y++)
         {
-            for (int y = 0; y < max_dim; y++)
+            for (int z = 0; z < max_dim; z++)
             {
-                for (int z = 0; z < max_dim; z++)
-                {
-                    if (i >= num_of_particles) {
-                        return;
-                    }
-                    particles[i].update(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z), 10, 10, 10);
-                    i++;
+                if (i >= num_of_particles) {
+                    return;
                 }
+                particles[i].update(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z), 10, 10, 10);
+                i++;
             }
         }
-        break;
-
-    case ParticlePlacementType::RANDOM:
-        // Do random placement
-    
-    default:
-        // Do default placement
-        break;
+    }
+    break;
     }
 }
 
