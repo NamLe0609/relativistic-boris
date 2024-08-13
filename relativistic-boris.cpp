@@ -76,11 +76,40 @@ struct Field
     Field(float x_force, float y_force, float z_force) : x(x_force), y(y_force), z(z_force) {}
 };
 
-void initialize_particles(Particle *particles, int num_of_particles)
+enum class ParticlePlacementType {
+    UNIFORM, // Evenly spaced integer placement for xyz coordinates
+    RANDOM, // Description 
+};
+
+void initialize_particles(Particle *particles, int num_of_particles, ParticlePlacementType placement_type)
 {
-    for (int i = 0; i < num_of_particles; i++)
+    switch (placement_type)
     {
-        particles[i].update(static_cast<float>(i), static_cast<float>(i), 0.0, 10.0, 10.0, 10.0);
+    case ParticlePlacementType::UNIFORM:
+        int max_dim = static_cast<int>(std::cbrt(static_cast<float>(num_of_particles)));
+        int i = 0;
+        for (int x = 0; x <= max_dim; x++)
+        {
+            for (int y = 0; y < max_dim; y++)
+            {
+                for (int z = 0; z < max_dim; z++)
+                {
+                    if (i >= num_of_particles) {
+                        return;
+                    }
+                    particles[i].update(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z), 10, 10, 10);
+                    i++;
+                }
+            }
+        }
+        break;
+
+    case ParticlePlacementType::RANDOM:
+        // Do random placement
+    
+    default:
+        // Do default placement
+        break;
     }
 }
 
@@ -151,7 +180,7 @@ int main()
     const float timestep = 0.025f;
 
     // Choose particles to simulate
-    const int num_of_particles = 256;
+    const int num_of_particles = 1001;
 
     // Number of Boris pusher iteration run
     const int max_iter = 100;
@@ -163,9 +192,9 @@ int main()
     // Declare and initialize particles with fixed data
     Particle *particles = new Particle[num_of_particles];
     ParticleHistory *particle_histories = new ParticleHistory[num_of_particles];
-    initialize_particles(particles, num_of_particles);
+    initialize_particles(particles, num_of_particles, ParticlePlacementType::UNIFORM);
     initialize_particle_history(particle_histories, num_of_particles, max_iter);
-
+    
     // Update particles with n iteration of Boris pusher
     for (int loop = 0; loop < max_iter; loop++)
     {
@@ -175,7 +204,7 @@ int main()
     // Print particle
     for (int i = 0; i < num_of_particles; i++)
     {
-        std::cout << particles[i].print() << "\n";
+        std::cout << "Particle " << i << ": " << particles[i].print() << "\n";
     }
     return 0.0;
 }
