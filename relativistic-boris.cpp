@@ -66,54 +66,49 @@ struct ParticleHistory
     }
 };
 
-struct Field
+struct Vec3
 {
     float x;
     float y;
     float z;
 
     // Initializes the field attributes
-    Field(float x_force, float y_force, float z_force) : x(x_force), y(y_force), z(z_force) {}
+    Vec3(float x_force, float y_force, float z_force) : x(x_force), y(y_force), z(z_force) {}
 };
 
 enum class ParticlePlacementType {
     UNIFORM, // Evenly spaced integer placement for xyz coordinates
 };
 
-void initialize_particles(Particle *particles, int num_of_particles, ParticlePlacementType placement_type)
+void initialize_particles(Particle *particles, Vec3 num_of_particles, int total_particle_count, Vec3 system_length, ParticlePlacementType placement_type)
 {
     switch (placement_type)
     {
     case ParticlePlacementType::UNIFORM:
-    int max_dim = static_cast<int>(std::cbrt(static_cast<float>(num_of_particles)));
-    int i = 0;
-    for (int x = 0; x <= max_dim; x++)
-    {
-        for (int y = 0; y < max_dim; y++)
+        float deltax = system_length.x / num_of_particles.x;
+        float deltay = system_length.y / num_of_particles.y;
+        float deltaz = system_length.z / num_of_particles.z;
+        for (int i = 0; i < total_particle_count; i++)
         {
-            for (int z = 0; z < max_dim; z++)
-            {
-                if (i >= num_of_particles) {
-                    return;
-                }
-                particles[i].update(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z), 10, 10, 10);
-                i++;
-            }
+            float corrected_index = static_cast<float>(i) + 0.5f;
+            particles[i].update(deltax * corrected_index, 
+            deltay * corrected_index,
+            deltaz * corrected_index, 
+            10, 10, 10);
         }
-    }
-    break;
+        break;
     }
 }
 
-void initialize_particle_history(ParticleHistory *particle_histories, int num_of_particles, int max_iter)
+void initialize_particle_history(ParticleHistory *particle_histories, int total_particle_count, int max_iter)
 {
-    for (int i = 0; i < num_of_particles; i++)
+    for (int i = 0; i < total_particle_count; i++)
     {
         particle_histories[i] = ParticleHistory(max_iter);
     }
 }
 
-void push_particle(Particle &particle, const Field &e_field, const Field &b_field, const float timestep, const float charge, const float mass)
+void push_particle(Particle &particle, const Vec3 &e_field, const Vec3 &b_field, const float timestep, const float charge, float mass)
 {
     // Pre-compute reused calculations
     float mass_square = mass * mass;
@@ -158,9 +153,9 @@ void push_particle(Particle &particle, const Field &e_field, const Field &b_fiel
     particle.update(x_updated, y_updated, z_updated, px_updated, py_updated, pz_updated);
 }
 
-void update_particles(Particle *particles, ParticleHistory *particle_histories, Field e_field, Field b_field, float timestep, int num_of_particles, int latest_time)
+void update_particles(Particle *particles, ParticleHistory *particle_histories, Vec3 e_field, Vec3 b_field, float timestep, int total_particle_count, int latest_time)
 {   
-    for (int i = 0; i < num_of_particles; i++)
+    for (int i = 0; i < total_particle_count; i++)
     {
         push_particle(particles[i], e_field, b_field, timestep, 1, 1);
         particle_histories[i].x[latest_time] = particles[i].x;
@@ -177,32 +172,40 @@ int main()
     // choose arbitrary timesteps
     const float timestep = 0.025f;
 
-    // Choose particles to simulate
-    const int num_of_particles = 1001;
+    // Choose number particles and dimension to simulate
+    const Vec3 num_of_particle = {4, 4, 4};
+    const Vec3 system_length = {4, 4, 4};
+    const int total_particle_count = static_cast<int>(num_of_particle.x * num_of_particle.y * num_of_particle.z);
 
     // Number of Boris pusher iteration run
     const int max_iter = 100;
 
     // Initialize E and B fields
-    const Field e_field(0.5, 0.5, 0.5);
-    const Field b_field(0.75, 0.75, 0.75);
+    const Vec3 e_field(0.5, 0.5, 0.5);
+    const Vec3 b_field(0.75, 0.75, 0.75);
 
     // Declare and initialize particles with fixed data
-    Particle *particles = new Particle[num_of_particles];
-    ParticleHistory *particle_histories = new ParticleHistory[num_of_particles];
-    initialize_particles(particles, num_of_particles, ParticlePlacementType::UNIFORM);
-    initialize_particle_history(particle_histories, num_of_particles, max_iter);
+    Particle *particles = new Particle[total_particle_count];
+    ParticleHistory *particle_histories = new ParticleHistory[total_particle_count];
+    initialize_particles(particles, num_of_particle, total_particle_count, system_length, ParticlePlacementType::UNIFORM);
+    initialize_particle_history(particle_histories, total_particle_count, max_iter);
     
+    // // Print particle initialize
+    // for (int i = 0; i < total_particle_count; i++)
+    // {
+    //     std::cout << "Particle " << i << ": " << particles[i].print() << "\n";
+    // }
+
     // Update particles with n iteration of Boris pusher
     for (int loop = 0; loop < max_iter; loop++)
     {
-        update_particles(particles, particle_histories, e_field, b_field, timestep, num_of_particles, loop);
+        update_particles(particles, particle_histories, e_field, b_field, timestep, total_particle_count, loop);
     }
 
-    // Print particle
-    for (int i = 0; i < num_of_particles; i++)
-    {
-        std::cout << "Particle " << i << ": " << particles[i].print() << "\n";
-    }
+    // // Print particle
+    // for (int i = 0; i < total_particle_count; i++)
+    // {
+    //     std::cout << "Particle " << i << ": " << particles[i].print() << "\n";
+    // }
     return 0.0;
 }
