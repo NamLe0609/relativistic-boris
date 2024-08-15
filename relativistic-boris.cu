@@ -108,7 +108,7 @@ void initialize_particle_history(ParticleHistory *particle_histories, int total_
     }
 }
 
-void push_particle(Particle &particle, const Vec3 &e_field, const Vec3 &b_field, const float timestep, const float charge, float mass)
+__device__ void push_particle(Particle &particle, const Vec3 &e_field, const Vec3 &b_field, const float timestep, const float charge, float mass)
 {
     // Pre-compute reused calculations
     float mass_square = mass * mass;
@@ -153,18 +153,25 @@ void push_particle(Particle &particle, const Vec3 &e_field, const Vec3 &b_field,
     particle.update(x_updated, y_updated, z_updated, px_updated, py_updated, pz_updated);
 }
 
-void update_particles(Particle *particles, ParticleHistory *particle_histories, Vec3 e_field, Vec3 b_field, float timestep, int total_particle_count, int latest_time)
+__global__ void update_particles(Particle *particles, ParticleHistory *particle_histories, Vec3 e_field, Vec3 b_field, float timestep, int total_particle_count, int latest_time)
 {   
-    for (int i = 0; i < total_particle_count; i++)
-    {
-        push_particle(particles[i], e_field, b_field, timestep, 1, 1);
-        particle_histories[i].x[latest_time] = particles[i].x;
-        particle_histories[i].y[latest_time] = particles[i].y;
-        particle_histories[i].z[latest_time] = particles[i].z;
-        particle_histories[i].px[latest_time] = particles[i].px;
-        particle_histories[i].py[latest_time] = particles[i].py;
-        particle_histories[i].pz[latest_time] = particles[i].pz;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < total_particle_count) {
+        push_particle(particles[idx], e_field, b_field, timestep, 1, 1);
+        particle_histories[idx].x[latest_time] = particles[idx].x;
+        particle_histories[idx].y[latest_time] = particles[idx].y;
+        particle_histories[idx].z[latest_time] = particles[idx].z;
+        particle_histories[idx].px[latest_time] = particles[idx].px;
+        particle_histories[idx].py[latest_time] = particles[idx].py;
+        particle_histories[idx].pz[latest_time] = particles[idx].pz;
     }
+}
+
+void launch_update_particles(Particle *particles, ParticleHistory *particle_histories, Vec3 e_field, Vec3 b_field, float timestep, int total_particle_count) {
+    const int threads_per_block = 256;
+    const int blocks = (total_particle_count + threads_per_block - 1) / threads_per_block;
+    update_particles<<<blocks, threads_per_block>>>(particles, particle_histories, e_field, b_field, timestep, total_particle_count, 0);
+    cudaDeviceSynchronize();
 }
 
 int main()
@@ -196,11 +203,13 @@ int main()
     //     std::cout << "Particle " << i << ": " << particles[i].print() << "\n";
     // }
 
-    // Update particles with n iteration of Boris pusher
-    for (int loop = 0; loop < max_iter; loop++)
-    {
-        update_particles(particles, particle_histories, e_field, b_field, timestep, total_particle_count, loop);
-    }
+    // Allocate memory on device
+    // Copy particles to device
+    // launch_update_particles();
+    // Define, create, and start recording CUDA events
+    // CUDAMEMCPY from device back to host
+    // Sync event and check time taken
+    // free everything
 
     // // Print particle
     // for (int i = 0; i < total_particle_count; i++)
