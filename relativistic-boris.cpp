@@ -113,50 +113,56 @@ void initialize_particle_history(ParticleHistory *particle_histories, int num_of
     }
 }
 
-void push_particle(Particle &electron, const Field &e_field, const Field &b_field, float timestep)
+void push_particle(Particle &particle, const Field &e_field, const Field &b_field, const float timestep, const float charge, const float mass)
 {
-    // Half-step momentum from Electric field
-    float px_half = electron.px + timestep * e_field.x / 2.0f;
-    float py_half = electron.py + timestep * e_field.y / 2.0f;
-    float pz_half = electron.pz + timestep * e_field.z / 2.0f;
+    // Pre-compute reused calculations
+    float mass_square = mass * mass;
+    float timestep_charge = charge * timestep;
 
-    // Lorentz factor for half-step momentum
-    float lorentz = std::sqrt(1.0f + px_half * px_half + py_half * py_half + pz_half * pz_half);
+    // half-step momentum from electric field
+    float px_half = particle.px + timestep_charge * e_field.x / 2.0f;
+    float py_half = particle.py + timestep_charge * e_field.y / 2.0f;
+    float pz_half = particle.pz + timestep_charge * e_field.z / 2.0f;
 
-    // Rotation vector from Magnetic field
-    float tx = timestep * b_field.x / (2.0f * lorentz);
-    float ty = timestep * b_field.y / (2.0f * lorentz);
-    float tz = timestep * b_field.z / (2.0f * lorentz);
+    // lorentz factor for half-step momentum
+    float lorentz = sqrtf(1.0f + px_half * px_half + py_half * py_half + pz_half * pz_half / mass_square);
+
+    // rotation vector from magnetic field
+    float lorentz_double = 2.0f * lorentz; // Pre-compute to avoid recalculating
+    float tx = timestep_charge * b_field.x / lorentz_double;
+    float ty = timestep_charge * b_field.y / lorentz_double;
+    float tz = timestep_charge * b_field.z / lorentz_double;
     float t_mag_square = tx * tx + ty * ty + tz * tz;
 
-    // Cross product of half p and t
+    // cross product of half p and t
     float px_prime = px_half + (py_half * tz - pz_half * ty);
     float py_prime = py_half + (pz_half * tx - px_half * tz);
     float pz_prime = pz_half + (px_half * ty - py_half * tx);
 
-    // Update momentum with effect from Boris rotation and Electric field
+    // update momentum with effect from boris rotation and electric field
     float denominator = 1 + t_mag_square;
-    float px_updated = px_half + 2 * (py_prime * tz - pz_prime * ty) / denominator + timestep * e_field.x / 2;
-    float py_updated = py_half + 2 * (pz_prime * tx - px_prime * tz) / denominator + timestep * e_field.y / 2;
-    float pz_updated = pz_half + 2 * (px_prime * ty - py_prime * tx) / denominator + timestep * e_field.z / 2;
+    float px_updated = px_half + 2 * (py_prime * tz - pz_prime * ty) / denominator + timestep_charge * e_field.x / 2.0f;
+    float py_updated = py_half + 2 * (pz_prime * tx - px_prime * tz) / denominator + timestep_charge * e_field.y / 2.0f;
+    float pz_updated = pz_half + 2 * (px_prime * ty - py_prime * tx) / denominator + timestep_charge * e_field.z / 2.0f;
 
-    // Lorentz factor for updated momentum
-    lorentz = std::sqrt(1.0f + px_updated * px_updated + py_updated * py_updated + pz_updated * pz_updated);
+    // lorentz factor for updated momentum
+    lorentz = sqrtf(1.0f + px_updated * px_updated + py_updated * py_updated + pz_updated * pz_updated / mass_square);
 
-    // Update position using calculated velocity
-    float x_updated = electron.x + timestep * px_updated / lorentz;
-    float y_updated = electron.y + timestep * py_updated / lorentz;
-    float z_updated = electron.z + timestep * pz_updated / lorentz;
+    // update position using calculated velocity
+    float lorentz_mass = mass * lorentz; // Pre-compute to avoid recalculating
+    float x_updated = particle.x + timestep * px_updated / lorentz_mass;
+    float y_updated = particle.y + timestep * py_updated / lorentz_mass;
+    float z_updated = particle.z + timestep * pz_updated / lorentz_mass;
 
-    // Update the electron with new location and momentum
-    electron.update(x_updated, y_updated, z_updated, px_updated, py_updated, pz_updated);
+    // update the particle with new location and momentum
+    particle.update(x_updated, y_updated, z_updated, px_updated, py_updated, pz_updated);
 }
 
 void update_particles(Particle *particles, ParticleHistory *particle_histories, Field e_field, Field b_field, float timestep, int num_of_particles, int latest_time)
-{
+{   
     for (int i = 0; i < num_of_particles; i++)
     {
-        push_particle(particles[i], e_field, b_field, timestep);
+        push_particle(particles[i], e_field, b_field, timestep, 1, 1);
         particle_histories[i].x[latest_time] = particles[i].x;
         particle_histories[i].y[latest_time] = particles[i].y;
         particle_histories[i].z[latest_time] = particles[i].z;
@@ -168,7 +174,7 @@ void update_particles(Particle *particles, ParticleHistory *particle_histories, 
 
 int main()
 {
-    // Choose arbitrary timesteps
+    // choose arbitrary timesteps
     const float timestep = 0.025f;
 
     // Choose particles to simulate
