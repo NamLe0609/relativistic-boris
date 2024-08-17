@@ -6,7 +6,7 @@
 #include <iostream>
 #include <math.h>
 #include <string>
-#include <vector>
+#include <vector_functions.h>
 
 struct Particle {
   float x;
@@ -50,16 +50,6 @@ struct ParticleHistory {
       : x(nullptr), y(nullptr), z(nullptr), px(nullptr), py(nullptr),
         pz(nullptr) {}
 
-  // Initialize the variable lists of size max_time
-  ParticleHistory(int max_time) {
-    x = new float[max_time];
-    y = new float[max_time];
-    z = new float[max_time];
-    px = new float[max_time];
-    py = new float[max_time];
-    pz = new float[max_time];
-  }
-
   ~ParticleHistory() {
     delete[] x;
     delete[] y;
@@ -70,22 +60,12 @@ struct ParticleHistory {
   }
 };
 
-struct Vec3 {
-  float x;
-  float y;
-  float z;
-
-  // Initializes the field attributes
-  Vec3(float x_force, float y_force, float z_force)
-      : x(x_force), y(y_force), z(z_force) {}
-};
-
 enum class ParticlePlacementType {
   UNIFORM, // Evenly spaced integer placement for xyz coordinates
 };
 
-void initialize_particles(Particle *particles, Vec3 num_of_particles,
-                          int total_particle_count, Vec3 system_length,
+void initialize_particles(Particle *particles, float3 num_of_particles,
+                          int total_particle_count, float3 system_length,
                           ParticlePlacementType placement_type) {
   switch (placement_type) {
   case ParticlePlacementType::UNIFORM:
@@ -104,12 +84,29 @@ void initialize_particles(Particle *particles, Vec3 num_of_particles,
 void initialize_particle_history(ParticleHistory *particle_histories,
                                  int total_particle_count, int max_iter) {
   for (int i = 0; i < total_particle_count; i++) {
-    particle_histories[i] = ParticleHistory(max_iter);
+    particle_histories[i].x = new float[max_iter];
+    particle_histories[i].y = new float[max_iter];
+    particle_histories[i].z = new float[max_iter];
+    particle_histories[i].px = new float[max_iter];
+    particle_histories[i].py = new float[max_iter];
+    particle_histories[i].pz = new float[max_iter];
   }
 }
 
-__device__ void push_particle(Particle &particle, const Vec3 &e_field,
-                              const Vec3 &b_field, const float timestep,
+void initialize_particle_history_cuda(ParticleHistory *particle_histories,
+                                 int total_particle_count, int max_iter) {
+  for (int i = 0; i < total_particle_count; i++) {
+    particle_histories[i].x = new float[max_iter];
+    particle_histories[i].y = new float[max_iter];
+    particle_histories[i].z = new float[max_iter];
+    particle_histories[i].px = new float[max_iter];
+    particle_histories[i].py = new float[max_iter];
+    particle_histories[i].pz = new float[max_iter];
+  }
+}
+
+__device__ void push_particle(Particle &particle, const float3 &e_field,
+                              const float3 &b_field, const float timestep,
                               const float charge, float mass) {
   // Pre-compute reused calculations
   float mass_square = mass * mass;
@@ -165,11 +162,12 @@ __device__ void push_particle(Particle &particle, const Vec3 &e_field,
 
 __global__ void update_particles(Particle *particles,
                                  ParticleHistory *particle_histories,
-                                 Vec3 e_field, Vec3 b_field, float timestep,
+                                 float3 e_field, float3 b_field, float charge,
+                                 float mass, float timestep,
                                  int total_particle_count, int latest_time) {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < total_particle_count) {
-    push_particle(particles[idx], e_field, b_field, timestep, 1, 1);
+    push_particle(particles[idx], e_field, b_field, timestep, charge, mass);
     particle_histories[idx].x[latest_time] = particles[idx].x;
     particle_histories[idx].y[latest_time] = particles[idx].y;
     particle_histories[idx].z[latest_time] = particles[idx].z;
@@ -180,34 +178,37 @@ __global__ void update_particles(Particle *particles,
 }
 
 void launch_update_particles(Particle *particles,
-                             ParticleHistory *particle_histories, Vec3 e_field,
-                             Vec3 b_field, float timestep,
-                             int total_particle_count) {
+                             ParticleHistory *particle_histories,
+                             float3 e_field, float3 b_field, float charge,
+                             float mass, float timestep,
+                             int total_particle_count, int iter) {
   const int threads_per_block = 256;
   const int blocks =
       (total_particle_count + threads_per_block - 1) / threads_per_block;
-  update_particles<<<blocks, threads_per_block>>>(particles, particle_histories,
-                                                  e_field, b_field, timestep,
-                                                  total_particle_count, 0);
+  update_particles<<<blocks, threads_per_block>>>(
+      particles, particle_histories, e_field, b_field, charge, mass, timestep,
+      total_particle_count, iter);
   cudaDeviceSynchronize();
 }
 
 int main() {
-  // choose arbitrary timesteps
-  const float timestep = 0.025f;
-
   // Choose number particles and dimension to simulate
-  const Vec3 num_of_particle = {4, 4, 4};
-  const Vec3 system_length = {4, 4, 4};
+  const float3 num_of_particle = make_float3(4.0f, 4.0f, 4.0f);
+  const float3 system_length = make_float3(4.0f, 4.0f, 4.0f);
   const int total_particle_count = static_cast<int>(
       num_of_particle.x * num_of_particle.y * num_of_particle.z);
 
+  // Initialize E and B fields
+  const float3 e_field = make_float3(0.5f, 0.5f, 0.5f);
+  const float3 b_field = make_float3(0.75f, 0.75f, 0.75f);
+  const float charge = 1.0f;
+  const float mass = 1.0f;
+
+  // choose arbitrary timesteps
+  const float timestep = 0.025f;
+
   // Number of Boris pusher iteration run
   const int max_iter = 100;
-
-  // Initialize E and B fields
-  const Vec3 e_field(0.5, 0.5, 0.5);
-  const Vec3 b_field(0.75, 0.75, 0.75);
 
   // Declare and initialize particles with fixed data
   Particle *particles = new Particle[total_particle_count];
@@ -224,16 +225,22 @@ int main() {
   //     std::cout << "Particle " << i << ": " << particles[i].print() << "\n";
   // }
 
-  // Allocate memory on device
-  size_t particle_mem_size = 6 * sizeof(float);
+  // Allocate and copy particles to device 
+  int particle_mem_size = 6 * sizeof(float);
   Particle *device_particles;
   cudaMalloc(&device_particles, particle_mem_size);
-
-  // Copy particles to device
   cudaMemcpy(device_particles, particles, particle_mem_size,
              cudaMemcpyHostToDevice);
 
-  // launch_update_particles
+  // Allocate and copy particle_histories to device 
+  int; 
+  ParticleHistory *device_particle_histories;
+
+  for (int i = 0; i < max_iter; i++) {
+    launch_update_particles(device_particles, device_particle_histories, e_field,
+                            b_field, charge, mass, timestep,
+                            total_particle_count, 0);
+  }
 
   // Define, create, and start recording CUDA events
   // CUDAMEMCPY from device back to host
