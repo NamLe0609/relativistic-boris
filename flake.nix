@@ -7,7 +7,7 @@
     let
       supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
       forEachSupportedSystem = f: nixpkgs.lib.genAttrs supportedSystems (system: f {
-        pkgs = import nixpkgs { inherit system; };
+        pkgs = import nixpkgs { inherit system; config.allowUnfree = true; };
       });
     in
     {
@@ -15,11 +15,12 @@
         default = pkgs.mkShell.override
           {
             # Override stdenv in order to change compiler:
-            # stdenv = pkgs.clangStdenv;
+            stdenv = pkgs.clangStdenv;
           }
           {
             packages = with pkgs; [
-              clang-tools
+              gcc12
+              clang-tools 
               cmake
               codespell
               conan
@@ -29,7 +30,7 @@
               lcov
               vcpkg
               vcpkg-tool
-              cudaPackages.nvcc
+              cudaPackages.cudatoolkit
             ] ++ (if system == "aarch64-darwin" then [ ] else [ gdb ]);
           };
       });
