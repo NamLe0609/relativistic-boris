@@ -254,6 +254,11 @@ int main() {
   cudaMemcpy(device_particle_histories, particle_histories,
              particle_history_mem_size, cudaMemcpyHostToDevice);
 
+  // Create events to time the memcpy transfer
+  cudaEvent_t start, stop;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+  cudaEventRecord(start, 0);
   for (int i = 0; i < max_iter; i++) {
     launch_update_particles(device_particles, device_particle_histories,
                             e_field, b_field, charge, mass, timestep,
@@ -262,9 +267,17 @@ int main() {
   cudaMemcpy(particle_histories, device_particle_histories,
              particle_history_mem_size, cudaMemcpyDeviceToHost);
 
-  // Define, create, and start recording CUDA events
-  // Sync event and check time taken
-  // free everything
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+
+  float time_elapsed = 0;
+  cudaEventElapsedTime(&time_elapsed, start, stop);
+
+  std::cout << "Elapsed time: " << time_elapsed << "\n";
+
+  // Destroy events
+  cudaEventDestroy(start);
+  cudaEventDestroy(stop);
 
   // print particle
   for (int i = 0; i < total_particle_count; i++) {

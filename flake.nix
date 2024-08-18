@@ -15,11 +15,10 @@
         default = pkgs.mkShell.override
           {
             # Override stdenv in order to change compiler:
-            stdenv = pkgs.clangStdenv;
+            stdenv = pkgs.gcc12Stdenv;
           }
           {
             packages = with pkgs; [
-              gcc12
               clang-tools 
               cmake
               codespell
