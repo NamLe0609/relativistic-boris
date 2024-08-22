@@ -153,22 +153,25 @@ void cudaMalloc_particle_history(ParticleHistory *device_particle_histories,
 void cudaMemcpy_particle_history(ParticleHistory *particle_histories,
                                  ParticleHistory *device_particle_histories,
                                  int total_particle_count,
-                                 int floatarr_mem_size) {
-  // As this is going on the device, we must use cudaMalloc
+                                 int floatarr_mem_size,
+                                 int particle_history_mem_size) {
+  ParticleHistory *temp = new ParticleHistory[total_particle_count];
+  cudaMemcpy(temp, device_particle_histories, particle_history_mem_size,
+             cudaMemcpyDeviceToHost);
   for (int i = 0; i < total_particle_count; i++) {
-    std::cout << particle_histories << "\n";
-    cudaMemcpy(particle_histories[i].x, particle_histories[i].x,
-               floatarr_mem_size, cudaMemcpyDeviceToHost);
-    cudaMemcpy(particle_histories[i].y, device_particle_histories[i].y,
-               floatarr_mem_size, cudaMemcpyDeviceToHost);
-    cudaMemcpy(particle_histories[i].z, device_particle_histories[i].z,
-               floatarr_mem_size, cudaMemcpyDeviceToHost);
-    cudaMemcpy(particle_histories[i].px, device_particle_histories[i].px,
-               floatarr_mem_size, cudaMemcpyDeviceToHost);
-    cudaMemcpy(particle_histories[i].py, device_particle_histories[i].py,
-               floatarr_mem_size, cudaMemcpyDeviceToHost);
-    cudaMemcpy(particle_histories[i].pz, device_particle_histories[i].pz,
-               floatarr_mem_size, cudaMemcpyDeviceToHost);
+    // Copy from host the pointer of the float arrays
+    cudaMemcpy(particle_histories[i].x, temp[i].x, floatarr_mem_size,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(particle_histories[i].y, temp[i].y, floatarr_mem_size,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(particle_histories[i].z, temp[i].z, floatarr_mem_size,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(particle_histories[i].px, temp[i].px, floatarr_mem_size,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(particle_histories[i].py, temp[i].py, floatarr_mem_size,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(particle_histories[i].pz, temp[i].pz, floatarr_mem_size,
+               cudaMemcpyDeviceToHost);
   }
 }
 
@@ -231,25 +234,24 @@ __global__ void update_particles(Particle *particles,
                                  ParticleHistory *particle_histories,
                                  float3 e_field, float3 b_field, float charge,
                                  float mass, float timestep,
-                                 int total_particle_count, int latest_time) {
+                                 int total_particle_count, int max_iter) {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < total_particle_count) {
-    push_particle(particles[idx], e_field, b_field, timestep, charge, mass);
-    particle_histories[idx].x[latest_time] = particles[idx].x;
-    particle_histories[idx].y[latest_time] = particles[idx].y;
-    particle_histories[idx].z[latest_time] = particles[idx].z;
-    particle_histories[idx].px[latest_time] = particles[idx].px;
-    particle_histories[idx].py[latest_time] = particles[idx].py;
-    particle_histories[idx].pz[latest_time] = particles[idx].pz;
+    for (int t = 0; t < max_iter; t++) {
+      particle_histories[idx].x[t] = particles[idx].x;
+      particle_histories[idx].y[t] = particles[idx].y;
+      particle_histories[idx].z[t] = particles[idx].z;
+      particle_histories[idx].px[t] = particles[idx].px;
+      particle_histories[idx].py[t] = particles[idx].py;
+      particle_histories[idx].pz[t] = particles[idx].pz;
 
-    printf("Particle %d at time %d - x: %.2f, y: %.2f, z: %.2f, px: %.2f, py: "
-           "%.2f, pz: %.2f \n",
-           idx, latest_time, particle_histories[idx].x[latest_time],
-           particle_histories[idx].y[latest_time],
-           particle_histories[idx].z[latest_time],
-           particle_histories[idx].px[latest_time],
-           particle_histories[idx].py[latest_time],
-           particle_histories[idx].pz[latest_time]);
+      // printf("Particle %d at time %d - x: %.2f, y: %.2f, z: %.2f, px: %.2f, "
+      //        "%.2f, pz: %.2f \n",
+      //        idx, t, particle_histories[idx].x[t], particle_histories[idx].y[t],
+      //        particle_histories[idx].z[t], particle_histories[idx].px[t],
+      //        particle_histories[idx].py[t], particle_histories[idx].pz[t]);
+      push_particle(particles[idx], e_field, b_field, timestep, charge, mass);
+    }
   }
 }
 
@@ -257,20 +259,20 @@ void launch_update_particles(Particle *particles,
                              ParticleHistory *particle_histories,
                              float3 e_field, float3 b_field, float charge,
                              float mass, float timestep,
-                             int total_particle_count, int iter) {
+                             int total_particle_count, int max_iter) {
   const int threads_per_block = 256;
   const int blocks =
       (total_particle_count + threads_per_block - 1) / threads_per_block;
   update_particles<<<blocks, threads_per_block>>>(
       particles, particle_histories, e_field, b_field, charge, mass, timestep,
-      total_particle_count, iter);
+      total_particle_count, max_iter);
   cudaDeviceSynchronize();
 }
 
 int main() {
   // Choose number particles and dimension to simulate
   const float3 num_of_particle = make_float3(2.0f, 2.0f, 2.0f);
-  const float3 system_length = make_float3(4.0f, 4.0f, 4.0f);
+  const float3 system_length = make_float3(2.0f, 2.0f, 2.0f);
   const int total_particle_count = static_cast<int>(
       num_of_particle.x * num_of_particle.y * num_of_particle.z);
   std::cout << "Number of particles: " << total_particle_count << "\n";
@@ -285,7 +287,7 @@ int main() {
   const float timestep = 0.025f;
 
   // Number of Boris pusher iteration run
-  const int max_iter = 2;
+  const int max_iter = 1024;
 
   // Declare and initialize particles with fixed data
   Particle *particles = new Particle[total_particle_count];
@@ -314,11 +316,9 @@ int main() {
                               max_iter, floatarr_mem_size);
 
   // Run Boris pusher on GPU
-  for (int i = 0; i < max_iter; i++) {
-    launch_update_particles(device_particles, device_particle_histories,
-                            e_field, b_field, charge, mass, timestep,
-                            total_particle_count, i);
-  }
+  launch_update_particles(device_particles, device_particle_histories, e_field,
+                          b_field, charge, mass, timestep, total_particle_count,
+                          max_iter);
 
   // Create events to time the memcpy transfer
   cudaEvent_t start, stop;
@@ -327,10 +327,9 @@ int main() {
   cudaEventRecord(start, 0);
 
   // Copy out the particle_histories data from device to host
-  cudaMemcpy(particle_histories, device_particle_histories,
-  particle_history_mem_size, cudaMemcpyDeviceToHost);
   cudaMemcpy_particle_history(particle_histories, device_particle_histories,
-                              total_particle_count, floatarr_mem_size);
+                              total_particle_count, floatarr_mem_size,
+                              particle_history_mem_size);
 
   cudaEventRecord(stop, 0);
   cudaEventSynchronize(stop);
@@ -344,11 +343,14 @@ int main() {
   cudaEventDestroy(start);
   cudaEventDestroy(stop);
 
-  // print particle
-  // for (int i = 0; i < total_particle_count; i++) {
-  //   std::cout << "particle " << i << ": " << particle_histories[i].print(0)
-  //             << "\n";
-  // }
-
+  for (int i = 0; i < total_particle_count; i++) {
+    std::cout << "Particle " << i << " at time " << max_iter - 1
+              << " - x: " << particle_histories[i].x[max_iter - 1]
+              << " y: " << particle_histories[i].y[max_iter - 1]
+              << " z: " << particle_histories[i].z[max_iter - 1]
+              << " px: " << particle_histories[i].px[max_iter - 1]
+              << " py: " << particle_histories[i].py[max_iter - 1]
+              << " pz: " << particle_histories[i].pz[max_iter - 1] << '\n';
+  }
   return 0.0;
 }
