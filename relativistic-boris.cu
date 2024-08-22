@@ -126,14 +126,6 @@ void cudaMalloc_particle_history(ParticleHistory *device_particle_histories,
     cudaMalloc(&device_py, floatarr_mem_size);
     cudaMalloc(&device_pz, floatarr_mem_size);
 
-    // Initialize the memory as 0
-    cudaMemset(device_x, 0, floatarr_mem_size);
-    cudaMemset(device_y, 0, floatarr_mem_size);
-    cudaMemset(device_z, 0, floatarr_mem_size);
-    cudaMemset(device_px, 0, floatarr_mem_size);
-    cudaMemset(device_py, 0, floatarr_mem_size);
-    cudaMemset(device_pz, 0, floatarr_mem_size);
-
     // Copy from host the pointer of the float arrays
     cudaMemcpy(&(device_particle_histories[i].x), &device_x, sizeof(float *),
                cudaMemcpyHostToDevice);
@@ -151,27 +143,35 @@ void cudaMalloc_particle_history(ParticleHistory *device_particle_histories,
 }
 
 void cudaMemcpy_particle_history(ParticleHistory *particle_histories,
-                                 ParticleHistory *device_particle_histories,
+                                 ParticleHistory *temp_particle_histories,
                                  int total_particle_count,
-                                 int floatarr_mem_size,
-                                 int particle_history_mem_size) {
-  ParticleHistory *temp = new ParticleHistory[total_particle_count];
-  cudaMemcpy(temp, device_particle_histories, particle_history_mem_size,
-             cudaMemcpyDeviceToHost);
+                                 int floatarr_mem_size) {
   for (int i = 0; i < total_particle_count; i++) {
     // Copy from host the pointer of the float arrays
-    cudaMemcpy(particle_histories[i].x, temp[i].x, floatarr_mem_size,
-               cudaMemcpyDeviceToHost);
-    cudaMemcpy(particle_histories[i].y, temp[i].y, floatarr_mem_size,
-               cudaMemcpyDeviceToHost);
-    cudaMemcpy(particle_histories[i].z, temp[i].z, floatarr_mem_size,
-               cudaMemcpyDeviceToHost);
-    cudaMemcpy(particle_histories[i].px, temp[i].px, floatarr_mem_size,
-               cudaMemcpyDeviceToHost);
-    cudaMemcpy(particle_histories[i].py, temp[i].py, floatarr_mem_size,
-               cudaMemcpyDeviceToHost);
-    cudaMemcpy(particle_histories[i].pz, temp[i].pz, floatarr_mem_size,
-               cudaMemcpyDeviceToHost);
+    cudaMemcpy(particle_histories[i].x, temp_particle_histories[i].x,
+               floatarr_mem_size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(particle_histories[i].y, temp_particle_histories[i].y,
+               floatarr_mem_size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(particle_histories[i].z, temp_particle_histories[i].z,
+               floatarr_mem_size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(particle_histories[i].px, temp_particle_histories[i].px,
+               floatarr_mem_size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(particle_histories[i].py, temp_particle_histories[i].py,
+               floatarr_mem_size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(particle_histories[i].pz, temp_particle_histories[i].pz,
+               floatarr_mem_size, cudaMemcpyDeviceToHost);
+  }
+}
+
+void cudaFree_particle_history(ParticleHistory *device_particle_histories,
+                               int total_particle_count) {
+  for (int i = 0; i < total_particle_count; i++) {
+    cudaFree(device_particle_histories[i].x);
+    cudaFree(device_particle_histories[i].y);
+    cudaFree(device_particle_histories[i].z);
+    cudaFree(device_particle_histories[i].px);
+    cudaFree(device_particle_histories[i].py);
+    cudaFree(device_particle_histories[i].pz);
   }
 }
 
@@ -247,9 +247,10 @@ __global__ void update_particles(Particle *particles,
 
       // printf("Particle %d at time %d - x: %.2f, y: %.2f, z: %.2f, px: %.2f, "
       //        "%.2f, pz: %.2f \n",
-      //        idx, t, particle_histories[idx].x[t], particle_histories[idx].y[t],
-      //        particle_histories[idx].z[t], particle_histories[idx].px[t],
-      //        particle_histories[idx].py[t], particle_histories[idx].pz[t]);
+      //        idx, t, particle_histories[idx].x[t],
+      //        particle_histories[idx].y[t], particle_histories[idx].z[t],
+      //        particle_histories[idx].px[t], particle_histories[idx].py[t],
+      //        particle_histories[idx].pz[t]);
       push_particle(particles[idx], e_field, b_field, timestep, charge, mass);
     }
   }
@@ -289,6 +290,11 @@ int main() {
   // Number of Boris pusher iteration run
   const int max_iter = 1024;
 
+  // Declare values for memory size of some arrays
+  int particle_history_mem_size =
+      total_particle_count * sizeof(ParticleHistory);
+  int floatarr_mem_size = max_iter * sizeof(float);
+
   // Declare and initialize particles with fixed data
   Particle *particles = new Particle[total_particle_count];
   initialize_particles(particles, num_of_particle, total_particle_count,
@@ -307,9 +313,6 @@ int main() {
              cudaMemcpyHostToDevice);
 
   // Allocate and copy particle_histories from host to device
-  int particle_history_mem_size =
-      total_particle_count * sizeof(ParticleHistory);
-  int floatarr_mem_size = max_iter * sizeof(float);
   ParticleHistory *device_particle_histories;
   cudaMalloc(&device_particle_histories, particle_history_mem_size);
   cudaMalloc_particle_history(device_particle_histories, total_particle_count,
@@ -326,10 +329,16 @@ int main() {
   cudaEventCreate(&stop);
   cudaEventRecord(start, 0);
 
+  // Get the device particle history pointer to index into the array
+  // Otherwise we would get segfaults when indexing into it
+  ParticleHistory *temp_particle_histories =
+      new ParticleHistory[total_particle_count];
+  cudaMemcpy(temp_particle_histories, device_particle_histories,
+             particle_history_mem_size, cudaMemcpyDeviceToHost);
+
   // Copy out the particle_histories data from device to host
-  cudaMemcpy_particle_history(particle_histories, device_particle_histories,
-                              total_particle_count, floatarr_mem_size,
-                              particle_history_mem_size);
+  cudaMemcpy_particle_history(particle_histories, temp_particle_histories,
+                              total_particle_count, floatarr_mem_size);
 
   cudaEventRecord(stop, 0);
   cudaEventSynchronize(stop);
@@ -352,5 +361,11 @@ int main() {
               << " py: " << particle_histories[i].py[max_iter - 1]
               << " pz: " << particle_histories[i].pz[max_iter - 1] << '\n';
   }
+
+  cudaFree(device_particles);
+  cudaFree(device_particle_histories);
+  cudaFree_particle_history(temp_particle_histories, total_particle_count);
+  delete[] particles;
+  delete[] particle_histories;
   return 0.0;
 }
