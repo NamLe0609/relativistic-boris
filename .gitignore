@@ -1,3 +1,19 @@
+# Build folders
+/bin/
+/.vscode/
+
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
 # Prerequisites
 *.d
 
@@ -30,12 +46,22 @@
 *.exe
 *.out
 *.app
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
 
-# Direnv specific
-.envrc
-.direnv
+# Fortran module files
+*.mod
+*.smod
 
-# Vscode stuff
-.vscode
-.cache
-build/
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
